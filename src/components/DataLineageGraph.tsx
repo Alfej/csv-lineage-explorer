@@ -36,43 +36,17 @@ const edgeTypes = {
   relationship: RelationshipEdge as any,
 };
 
-const DataLineageGraph = ({ csvData, filters }: DataLineageGraphProps) => {
-  // Map header names to their indexes (case-insensitive, ignore spaces)
-  const headerMap = useMemo(() => {
-    if (!csvData.length) return {};
-    const headers = csvData[0].map(h => h.toLowerCase().replace(/\s+/g, ''));
-    const map: Record<string, number> = {};
-    headers.forEach((header, idx) => {
-      map[header] = idx;
-    });
-    return map; 
-  }, [csvData]);
-
+const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
   // Parse CSV data (skip header row)
-  const filteredTableData: TableData[] = useMemo(() => {
-    let data = csvData.slice(1).map(row => ({
-      childTableName: row[headerMap['childtablename']] || '',
-      childTableType: row[headerMap['childtabletype']] || '',
-      relationship: row[headerMap['relationship']] || '',
-      parentTableName: row[headerMap['parenttablename']] || '',
-      parentTableType: row[headerMap['parenttabletype']] || '',
+  const tableData: TableData[] = useMemo(() => {
+    return csvData.slice(1).map(row => ({
+      childTableName: row[0] || '',
+      childTableType: row[1] || '',
+      relationship: row[2] || '',
+      parentTableName: row[3] || '',
+      parentTableType: row[4] || '',
     }));
-
-    // Apply filters if they exist
-    if (filters) {
-      if (filters.childTableType.length > 0) {
-        data = data.filter(row => filters.childTableType.includes(row.childTableType));
-      }
-      if (filters.parentTableType.length > 0) {
-        data = data.filter(row => filters.parentTableType.includes(row.parentTableType));
-      }
-      if (filters.relationship.length > 0) {
-        data = data.filter(row => filters.relationship.includes(row.relationship));
-      }
-    }
-
-    return data;
-  }, [csvData, headerMap, filters]);
+  }, [csvData]);
 
   // Create nodes and edges
   const { initialNodes, initialEdges } = useMemo(() => {

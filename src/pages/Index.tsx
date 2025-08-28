@@ -32,10 +32,21 @@ const Index = () => {
       'parentTableName',
       'parentTableType'
     ];
+<<<<<<< HEAD
     const normalizedHeaders = headers.map(h => h.toLowerCase().replace(/\s+/g, ''));
     return expectedHeaders.every(expected =>
       normalizedHeaders.includes(expected.toLowerCase())
     );
+=======
+    
+// Normalize headers for comparison
+  const normalizedHeaders = headers.map(h => h.toLowerCase().replace(/\s+/g, ''));
+
+  // Check that all expected headers are present somewhere
+  return expectedHeaders.every(expected =>
+    normalizedHeaders.includes(expected.toLowerCase())
+  );
+>>>>>>> 1663b87 (init push)
   };
 
   const handleFileSelect = (file: File) => {
