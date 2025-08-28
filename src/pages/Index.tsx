@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Logo from '@/components/Logo';
 import FileUpload from '@/components/FileUpload';
 import CsvTable from '@/components/CsvTable';
+import DataLineageGraph from '@/components/DataLineageGraph';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -11,7 +12,26 @@ const Index = () => {
   const [csvData, setCsvData] = useState<string[][]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showLineageGraph, setShowLineageGraph] = useState(false);
   const { toast } = useToast();
+
+  const validateCSVStructure = (headers: string[]): boolean => {
+    const expectedHeaders = [
+      'childTableName',
+      'childTableType', 
+      'relationship',
+      'parentTableName',
+      'parentTableType'
+    ];
+    
+    if (headers.length !== expectedHeaders.length) {
+      return false;
+    }
+    
+    return expectedHeaders.every((expected, index) => 
+      headers[index]?.toLowerCase().replace(/\s+/g, '') === expected.toLowerCase()
+    );
+  };
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
@@ -22,6 +42,7 @@ const Index = () => {
   const handleClearFile = () => {
     setSelectedFile(null);
     setShowResults(false);
+    setShowLineageGraph(false);
     setCsvData([]);
   };
 
@@ -66,8 +87,20 @@ const Index = () => {
         return;
       }
 
+      // Validate CSV structure
+      const headers = parsed[0];
+      if (!validateCSVStructure(headers)) {
+        toast({
+          title: "CSV File not in proper format",
+          description: "CSV must have 5 columns: childTableName, childTableType, relationship, parentTableName, parentTableType",
+          variant: "destructive",
+        });
+        return;
+      }
+
       setCsvData(parsed);
       setShowResults(true);
+      setShowLineageGraph(true);
       
       toast({
         title: "File processed successfully",
@@ -124,11 +157,21 @@ const Index = () => {
               <h2 className="text-2xl font-bold text-foreground">Data Lineage Results</h2>
               <Button
                 variant="outline"
-                onClick={() => setShowResults(false)}
+                onClick={() => {
+                  setShowResults(false);
+                  setShowLineageGraph(false);
+                }}
               >
                 Upload New File
               </Button>
             </div>
+            
+            {showLineageGraph && (
+              <div className="space-y-6">
+                <h3 className="text-xl font-semibold text-foreground">Data Lineage Graph</h3>
+                <DataLineageGraph csvData={csvData} />
+              </div>
+            )}
             
             <CsvTable
               filePath={selectedFile?.name || 'Unknown'}
