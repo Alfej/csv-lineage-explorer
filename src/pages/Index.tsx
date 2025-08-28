@@ -6,7 +6,7 @@ import DataLineageGraph from '@/components/DataLineageGraph';
 import FilterControls, { FilterState } from '@/components/FilterControls';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import DataLineageFilters, { FilterState } from '@/components/DataLineageFilters';
+import DataLineageFilters from '@/components/DataLineageFilters';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -14,11 +14,6 @@ const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showLineageGraph, setShowLineageGraph] = useState(false);
-  const [filters, setFilters] = useState<FilterState>({
-    childTableType: [],
-    parentTableType: [],
-    relationship: [],
-  });
   const { toast } = useToast();
 
   // Multi-column filter state
