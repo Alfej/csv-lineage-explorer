@@ -3,6 +3,7 @@ import Logo from '@/components/Logo';
 import FileUpload from '@/components/FileUpload';
 import CsvTable from '@/components/CsvTable';
 import DataLineageGraph from '@/components/DataLineageGraph';
+import FilterControls, { FilterState } from '@/components/FilterControls';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -13,6 +14,11 @@ const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showLineageGraph, setShowLineageGraph] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    childTableType: [],
+    parentTableType: [],
+    relationship: [],
+  });
   const { toast } = useToast();
 
   const validateCSVStructure = (headers: string[]): boolean => {
@@ -44,6 +50,11 @@ const Index = () => {
     setShowResults(false);
     setShowLineageGraph(false);
     setCsvData([]);
+    setFilters({
+      childTableType: [],
+      parentTableType: [],
+      relationship: [],
+    });
   };
 
   const parseCSV = (text: string): string[][] => {
@@ -160,16 +171,26 @@ const Index = () => {
                 onClick={() => {
                   setShowResults(false);
                   setShowLineageGraph(false);
+                  setFilters({
+                    childTableType: [],
+                    parentTableType: [],
+                    relationship: [],
+                  });
                 }}
               >
                 Upload New File
               </Button>
             </div>
             
+            <FilterControls 
+              csvData={csvData} 
+              onFiltersChange={setFilters}
+            />
+            
             {showLineageGraph && (
               <div className="space-y-6">
                 <h3 className="text-xl font-semibold text-foreground">Data Lineage Graph</h3>
-                <DataLineageGraph csvData={csvData} />
+                <DataLineageGraph csvData={csvData} filters={filters} />
               </div>
             )}
             
@@ -177,6 +198,7 @@ const Index = () => {
               filePath={selectedFile?.name || 'Unknown'}
               csvData={csvData}
               fileName={selectedFile?.name || 'Unknown'}
+              filters={filters}
             />
           </div>
         )}

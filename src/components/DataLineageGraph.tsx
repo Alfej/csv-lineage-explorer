@@ -13,9 +13,11 @@ import '@xyflow/react/dist/style.css';
 import { Card } from '@/components/ui/card';
 import TableNode from './TableNode';
 import RelationshipEdge from './RelationshipEdge';
+import { FilterState } from './FilterControls';
 
 interface DataLineageGraphProps {
   csvData: string[][];
+  filters?: FilterState;
 }
 
 interface TableData {
@@ -34,7 +36,7 @@ const edgeTypes = {
   relationship: RelationshipEdge as any,
 };
 
-const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
+const DataLineageGraph = ({ csvData, filters }: DataLineageGraphProps) => {
   // Map header names to their indexes (case-insensitive, ignore spaces)
   const headerMap = useMemo(() => {
     if (!csvData.length) return {};
@@ -47,22 +49,37 @@ const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
   }, [csvData]);
 
   // Parse CSV data (skip header row)
-  const tableData: TableData[] = useMemo(() => {
-    return csvData.slice(1).map(row => ({
+  const filteredTableData: TableData[] = useMemo(() => {
+    let data = csvData.slice(1).map(row => ({
       childTableName: row[headerMap['childtablename']] || '',
       childTableType: row[headerMap['childtabletype']] || '',
       relationship: row[headerMap['relationship']] || '',
       parentTableName: row[headerMap['parenttablename']] || '',
       parentTableType: row[headerMap['parenttabletype']] || '',
     }));
-  }, [csvData, headerMap]);
+
+    // Apply filters if they exist
+    if (filters) {
+      if (filters.childTableType.length > 0) {
+        data = data.filter(row => filters.childTableType.includes(row.childTableType));
+      }
+      if (filters.parentTableType.length > 0) {
+        data = data.filter(row => filters.parentTableType.includes(row.parentTableType));
+      }
+      if (filters.relationship.length > 0) {
+        data = data.filter(row => filters.relationship.includes(row.relationship));
+      }
+    }
+
+    return data;
+  }, [csvData, headerMap, filters]);
 
   // Create nodes and edges
   const { initialNodes, initialEdges } = useMemo(() => {
     const tableMap = new Map<string, { type: string; children: string[]; parents: string[] }>();
     
     // Build table relationships
-    tableData.forEach(({ childTableName, childTableType, parentTableName, parentTableType }) => {
+    filteredTableData.forEach(({ childTableName, childTableType, parentTableName, parentTableType }) => {
       // Add parent table
       if (!tableMap.has(parentTableName)) {
         tableMap.set(parentTableName, { type: parentTableType, children: [], parents: [] });
@@ -140,7 +157,7 @@ const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
     });
 
     // Create edges
-    tableData.forEach(({ childTableName, relationship, parentTableName }, index) => {
+    filteredTableData.forEach(({ childTableName, relationship, parentTableName }, index) => {
       edges.push({
         id: `e-${index}`,
         source: parentTableName,
@@ -161,7 +178,7 @@ const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
     });
 
     return { initialNodes: nodes, initialEdges: edges };
-  }, [tableData]);
+  }, [filteredTableData]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
