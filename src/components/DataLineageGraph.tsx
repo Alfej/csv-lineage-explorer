@@ -43,7 +43,7 @@ const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
     headers.forEach((header, idx) => {
       map[header] = idx;
     });
-    return map;
+    return map; 
   }, [csvData]);
 
   // Parse CSV data (skip header row)
