@@ -3,6 +3,7 @@ import Logo from '@/components/Logo';
 import FileUpload from '@/components/FileUpload';
 import CsvTable from '@/components/CsvTable';
 import DataLineageGraph from '@/components/DataLineageGraph';
+import FilterControls, { FilterState } from '@/components/FilterControls';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import DataLineageFilters, { FilterState } from '@/components/DataLineageFilters';
@@ -13,6 +14,11 @@ const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showLineageGraph, setShowLineageGraph] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    childTableType: [],
+    parentTableType: [],
+    relationship: [],
+  });
   const { toast } = useToast();
 
   // Multi-column filter state
@@ -44,37 +50,7 @@ const Index = () => {
     setShowResults(false);
     setShowLineageGraph(false);
     setCsvData([]);
-    setFilters({});
   };
-
-  const columns = csvData.length > 0 ? csvData[0] : [];
-
-  // Convert CSV rows to array of objects for filter UI
-  const rowObjects = useMemo(() => {
-    if (csvData.length < 2) return [];
-    return csvData.slice(1).map(row =>
-      Object.fromEntries(columns.map((col, idx) => [col, row[idx]]))
-    );
-  }, [csvData, columns]);
-
-  // Filtered CSV data for graph and table
-  const filteredCsvData = useMemo(() => {
-    if (csvData.length === 0) return csvData;
-    const headers = csvData[0];
-    return [
-      headers,
-      ...csvData.slice(1).filter(row =>
-        Object.entries(filters).every(([col, selected]) => {
-          if (!selected || selected.length === 0) return true;
-          const colIdx = headers.findIndex(
-            h => h.toLowerCase().replace(/\s+/g, '') === col.toLowerCase().replace(/\s+/g, '')
-          );
-          if (colIdx === -1) return true;
-          return selected.includes(row[colIdx]);
-        })
-      )
-    ];
-  }, [csvData, filters]);
 
   const parseCSV = (text: string): string[][] => {
     const lines = text.split('\n');
@@ -186,23 +162,16 @@ const Index = () => {
                 onClick={() => {
                   setShowResults(false);
                   setShowLineageGraph(false);
-                  setFilters({});
                 }}
               >
                 Upload New File
               </Button>
             </div>
-            <DataLineageFilters
-              data={rowObjects}
-              columns={columns}
-              filters={filters}
-              onFiltersChange={setFilters}
-            />
-
+            
             {showLineageGraph && (
               <div className="space-y-6">
                 <h3 className="text-xl font-semibold text-foreground">Data Lineage Graph</h3>
-                <DataLineageGraph csvData={filteredCsvData} />
+                <DataLineageGraph csvData={csvData} />
               </div>
             )}
 
@@ -210,6 +179,7 @@ const Index = () => {
               filePath={selectedFile?.name || 'Unknown'}
               csvData={filteredCsvData}
               fileName={selectedFile?.name || 'Unknown'}
+              filters={filters}
             />
           </div>
         )}
