@@ -37,25 +37,6 @@ const CsvTable = ({ filePath, csvData, fileName }: CsvTableProps) => {
 
   return (
     <div className="w-full space-y-6">
-      {/* File Info Card */}
-      <Card className="p-4 bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-foreground mb-1">File Information</h3>
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium">Path:</span> {filePath}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium">Rows:</span> {csvData.length > 0 ? csvData.length - 1 : 0} data rows
-            </p>
-          </div>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-        </div>
-      </Card>
-
       {/* Data Table */}
       <Card className="overflow-hidden">
         <div className="p-4 border-b">

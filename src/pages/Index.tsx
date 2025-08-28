@@ -24,7 +24,7 @@ const Index = () => {
       'parentTableType'
     ];
     
-    if (headers.length !== expectedHeaders.length) {
+    if (headers.length < expectedHeaders.length) {
       return false;
     }
     
@@ -92,7 +92,7 @@ const Index = () => {
       if (!validateCSVStructure(headers)) {
         toast({
           title: "CSV File not in proper format",
-          description: "CSV must have 5 columns: childTableName, childTableType, relationship, parentTableName, parentTableType",
+          description: "CSV must have minimum 5 columns: childTableName, childTableType, relationship, parentTableName, parentTableType",
           variant: "destructive",
         });
         return;
