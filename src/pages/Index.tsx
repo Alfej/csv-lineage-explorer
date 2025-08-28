@@ -24,13 +24,13 @@ const Index = () => {
       'parentTableType'
     ];
     
-    if (headers.length < expectedHeaders.length) {
-      return false;
-    }
-    
-    return expectedHeaders.every((expected, index) => 
-      headers[index]?.toLowerCase().replace(/\s+/g, '') === expected.toLowerCase()
-    );
+// Normalize headers for comparison
+  const normalizedHeaders = headers.map(h => h.toLowerCase().replace(/\s+/g, ''));
+
+  // Check that all expected headers are present somewhere
+  return expectedHeaders.every(expected =>
+    normalizedHeaders.includes(expected.toLowerCase())
+  );
   };
 
   const handleFileSelect = (file: File) => {

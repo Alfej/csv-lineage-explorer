@@ -35,16 +35,27 @@ const edgeTypes = {
 };
 
 const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
+  // Map header names to their indexes (case-insensitive, ignore spaces)
+  const headerMap = useMemo(() => {
+    if (!csvData.length) return {};
+    const headers = csvData[0].map(h => h.toLowerCase().replace(/\s+/g, ''));
+    const map: Record<string, number> = {};
+    headers.forEach((header, idx) => {
+      map[header] = idx;
+    });
+    return map;
+  }, [csvData]);
+
   // Parse CSV data (skip header row)
   const tableData: TableData[] = useMemo(() => {
     return csvData.slice(1).map(row => ({
-      childTableName: row[0] || '',
-      childTableType: row[1] || '',
-      relationship: row[2] || '',
-      parentTableName: row[3] || '',
-      parentTableType: row[4] || '',
+      childTableName: row[headerMap['childtablename']] || '',
+      childTableType: row[headerMap['childtabletype']] || '',
+      relationship: row[headerMap['relationship']] || '',
+      parentTableName: row[headerMap['parenttablename']] || '',
+      parentTableType: row[headerMap['parenttabletype']] || '',
     }));
-  }, [csvData]);
+  }, [csvData, headerMap]);
 
   // Create nodes and edges
   const { initialNodes, initialEdges } = useMemo(() => {
