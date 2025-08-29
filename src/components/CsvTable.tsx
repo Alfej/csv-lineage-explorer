@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
-
 interface CsvTableProps {
   filePath: string;
   csvData: string[][];
@@ -13,18 +12,20 @@ const CsvTable = ({ filePath, csvData, fileName }: CsvTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
 
-  const { headers, rows, totalPages } = useMemo(() => {
-    if (csvData.length === 0) return { headers: [], rows: [], totalPages: 0 };
+  const { headers, rows, totalPages, filteredRowCount } = useMemo(() => {
+    if (csvData.length === 0) return { headers: [], rows: [], totalPages: 0, filteredRowCount: 0 };
     
     const headers = csvData[0] || [];
     const dataRows = csvData.slice(1);
+
+    const filteredRowCount = dataRows.length;
     const totalPages = Math.ceil(dataRows.length / rowsPerPage);
     
     const startIndex = (currentPage - 1) * rowsPerPage;
     const endIndex = startIndex + rowsPerPage;
     const paginatedRows = dataRows.slice(startIndex, endIndex);
     
-    return { headers, rows: paginatedRows, totalPages };
+    return { headers, rows: paginatedRows, totalPages, filteredRowCount };
   }, [csvData, currentPage, rowsPerPage]);
 
   const handlePrevPage = () => {
@@ -42,7 +43,7 @@ const CsvTable = ({ filePath, csvData, fileName }: CsvTableProps) => {
         <div className="p-4 border-b">
           <h3 className="text-lg font-semibold">Data Preview</h3>
           <p className="text-sm text-muted-foreground">
-            Showing {Math.min(rowsPerPage, rows.length)} of {csvData.length > 0 ? csvData.length - 1 : 0} rows
+            Showing {Math.min(rowsPerPage, rows.length)} of {filteredRowCount} rows
           </p>
         </div>
         

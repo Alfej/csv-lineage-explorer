@@ -13,7 +13,6 @@ import '@xyflow/react/dist/style.css';
 import { Card } from '@/components/ui/card';
 import TableNode from './TableNode';
 import RelationshipEdge from './RelationshipEdge';
-
 interface DataLineageGraphProps {
   csvData: string[][];
 }
@@ -59,6 +58,8 @@ const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
 
   // Create nodes and edges
   const { initialNodes, initialEdges } = useMemo(() => {
+    if (tableData.length === 0) return { initialNodes: [], initialEdges: [] };
+    
     const tableMap = new Map<string, { type: string; children: string[]; parents: string[] }>();
     
     // Build table relationships
@@ -163,8 +164,19 @@ const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
     return { initialNodes: nodes, initialEdges: edges };
   }, [tableData]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // Update nodes and edges when filtered data changes
+  const updateNodesAndEdges = useCallback(() => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+  }, [initialNodes, initialEdges, setNodes, setEdges]);
+
+  // Trigger update when initialNodes or initialEdges change
+  useMemo(() => {
+    updateNodesAndEdges();
+  }, [updateNodesAndEdges]);
 
   return (
     <Card className="w-full h-[600px] overflow-hidden">

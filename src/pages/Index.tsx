@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Logo from '@/components/Logo';
 import FileUpload from '@/components/FileUpload';
 import CsvTable from '@/components/CsvTable';
 import DataLineageGraph from '@/components/DataLineageGraph';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import DataLineageFilters, { FilterState } from '@/components/DataLineageFilters';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -15,28 +15,28 @@ const Index = () => {
   const [showLineageGraph, setShowLineageGraph] = useState(false);
   const { toast } = useToast();
 
+  // Multi-column filter state
+  const [filters, setFilters] = useState<FilterState>({});
+
   const validateCSVStructure = (headers: string[]): boolean => {
     const expectedHeaders = [
       'childTableName',
-      'childTableType', 
+      'childTableType',
       'relationship',
       'parentTableName',
       'parentTableType'
     ];
-    
-// Normalize headers for comparison
-  const normalizedHeaders = headers.map(h => h.toLowerCase().replace(/\s+/g, ''));
-
-  // Check that all expected headers are present somewhere
-  return expectedHeaders.every(expected =>
-    normalizedHeaders.includes(expected.toLowerCase())
-  );
+    const normalizedHeaders = headers.map(h => h.toLowerCase().replace(/\s+/g, ''));
+    return expectedHeaders.every(expected =>
+      normalizedHeaders.includes(expected.toLowerCase())
+    );
   };
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
     setShowResults(false);
     setCsvData([]);
+    setFilters({});
   };
 
   const handleClearFile = () => {
@@ -49,16 +49,12 @@ const Index = () => {
   const parseCSV = (text: string): string[][] => {
     const lines = text.split('\n');
     const result: string[][] = [];
-    
     for (const line of lines) {
       if (line.trim()) {
-        // Simple CSV parsing - splits by comma
-        // In production, you'd want a more robust CSV parser
         const values = line.split(',').map(value => value.trim().replace(/^"|"$/g, ''));
         result.push(values);
       }
     }
-    
     return result;
   };
 
@@ -73,11 +69,11 @@ const Index = () => {
     }
 
     setIsProcessing(true);
-    
+
     try {
       const text = await selectedFile.text();
       const parsed = parseCSV(text);
-      
+
       if (parsed.length === 0) {
         toast({
           title: "Empty file",
@@ -101,7 +97,7 @@ const Index = () => {
       setCsvData(parsed);
       setShowResults(true);
       setShowLineageGraph(true);
-      
+
       toast({
         title: "File processed successfully",
         description: `Loaded ${parsed.length - 1} data rows from ${selectedFile.name}`,
@@ -116,6 +112,38 @@ const Index = () => {
       setIsProcessing(false);
     }
   };
+
+  // Convert CSV data to array of objects for filtering
+  const dataForFiltering = useMemo(() => {
+    if (csvData.length === 0) return [];
+    const headers = csvData[0];
+    return csvData.slice(1).map(row => 
+      headers.reduce((obj, header, index) => ({
+        ...obj,
+        [header]: row[index] || ''
+      }), {})
+    );
+  }, [csvData]);
+
+  // Filter the data based on current filters
+  const filteredData = useMemo(() => {
+    return dataForFiltering.filter(row => {
+      return Object.entries(filters).every(([column, selectedValues]) => {
+        if (selectedValues.length === 0) return true;
+        return selectedValues.includes(String(row[column]));
+      });
+    });
+  }, [dataForFiltering, filters]);
+
+  // Convert filtered data back to CSV format for the table
+  const filteredCsvData = useMemo(() => {
+    if (csvData.length === 0) return [];
+    const headers = csvData[0];
+    const filteredRows = filteredData.map(row => 
+      headers.map(header => row[header] || '')
+    );
+    return [headers, ...filteredRows];
+  }, [csvData, filteredData]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
@@ -136,7 +164,7 @@ const Index = () => {
               selectedFile={selectedFile}
               onClearFile={handleClearFile}
             />
-            
+
             {selectedFile && (
               <div className="flex justify-center">
                 <Button
@@ -166,16 +194,26 @@ const Index = () => {
               </Button>
             </div>
             
+            {/* Filters */}
+            {csvData.length > 0 && (
+              <DataLineageFilters
+                data={dataForFiltering}
+                columns={csvData[0]}
+                filters={filters}
+                onFiltersChange={setFilters}
+              />
+            )}
+
             {showLineageGraph && (
               <div className="space-y-6">
                 <h3 className="text-xl font-semibold text-foreground">Data Lineage Graph</h3>
-                <DataLineageGraph csvData={csvData} />
+                <DataLineageGraph csvData={filteredCsvData} />
               </div>
             )}
-            
+
             <CsvTable
               filePath={selectedFile?.name || 'Unknown'}
-              csvData={csvData}
+              csvData={filteredCsvData}
               fileName={selectedFile?.name || 'Unknown'}
             />
           </div>
