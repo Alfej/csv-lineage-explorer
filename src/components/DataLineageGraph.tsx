@@ -84,7 +84,7 @@ const DataLineageGraph = ({ csvData, hiddenNodes, onHiddenNodesChange }: DataLin
       childTableType: headers.indexOf('childtabletype'),
       relationship: headers.indexOf('relationship'),
       parentTableName: headers.indexOf('parenttablename'),
-      parentTableType: headers.indexOf('parenttabletype')
+      parentTableType: headers.indexOf('parenttabletype'),
     };
 
     // Validate if all required columns are present

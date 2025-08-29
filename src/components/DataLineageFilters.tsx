@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,6 +20,8 @@ interface DataLineageFiltersProps {
   onHiddenNodesChange: (hiddenNodes: Set<string>) => void;
 }
 
+const FILTERS_STORAGE_KEY = 'lineageFilters';
+
 const DataLineageFilters: React.FC<DataLineageFiltersProps> = ({
   data,
   columns,
@@ -32,7 +34,31 @@ const DataLineageFilters: React.FC<DataLineageFiltersProps> = ({
   const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
   const [selectedHiddenNode, setSelectedHiddenNode] = useState<string>('');
 
-  // Get filtered data based on current filter selections
+  // 🔹 Load filters from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(FILTERS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed === 'object') {
+          onFiltersChange(parsed);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load filters from localStorage', error);
+    }
+  }, [onFiltersChange]);
+
+  // 🔹 Save filters to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+    } catch (error) {
+      console.error('Failed to save filters to localStorage', error);
+    }
+  }, [filters]);
+
+  // 🔹 Get filtered data based on current filter selections
   const getFilteredData = (excludeColumn?: string) => {
     return data.filter(row => {
       return Object.entries(filters).every(([col, selectedValues]) => {
@@ -43,14 +69,12 @@ const DataLineageFilters: React.FC<DataLineageFiltersProps> = ({
     });
   };
 
-  // Get available values for a column based on current filters
   const getAvailableValues = (columnName: string) => {
     const filteredData = getFilteredData(columnName);
     const values = [...new Set(filteredData.map(row => String(row[columnName])))];
     return values.sort();
   };
 
-  // Get filtered values based on search term
   const getFilteredValues = (columnName: string, values: string[]) => {
     const searchTerm = searchTerms[columnName]?.toLowerCase() || '';
     return values.filter(value => value.toLowerCase().includes(searchTerm));
@@ -61,7 +85,6 @@ const DataLineageFilters: React.FC<DataLineageFiltersProps> = ({
     const newSelected = currentSelected.includes(value)
       ? currentSelected.filter(v => v !== value)
       : [...currentSelected, value];
-    
     onFiltersChange({
       ...filters,
       [columnName]: newSelected
@@ -72,7 +95,6 @@ const DataLineageFilters: React.FC<DataLineageFiltersProps> = ({
     const availableValues = getAvailableValues(columnName);
     const currentSelected = filters[columnName] || [];
     const isAllSelected = currentSelected.length === availableValues.length;
-    
     onFiltersChange({
       ...filters,
       [columnName]: isAllSelected ? [] : availableValues
@@ -82,7 +104,6 @@ const DataLineageFilters: React.FC<DataLineageFiltersProps> = ({
   const getDisplayText = (columnName: string) => {
     const selectedValues = filters[columnName] || [];
     const availableValues = getAvailableValues(columnName);
-    
     if (selectedValues.length === 0) {
       return `Select ${columnName}`;
     } else if (selectedValues.length === availableValues.length) {
@@ -108,7 +129,6 @@ const DataLineageFilters: React.FC<DataLineageFiltersProps> = ({
     }
   };
 
-  // Get all table names from data for hidden nodes dropdown
   const allTableNames = useMemo(() => {
     const names = new Set<string>();
     data.forEach(row => {
@@ -123,7 +143,7 @@ const DataLineageFilters: React.FC<DataLineageFiltersProps> = ({
   return (
     <div className="p-4 border-b bg-card">
       <h3 className="text-lg font-semibold mb-4 text-foreground">Data Filters</h3>
-      
+
       {/* Hidden Nodes Controls */}
       {hiddenNodesArray.length > 0 && (
         <div className="mb-6 p-4 border rounded-lg bg-muted/50">
@@ -141,7 +161,7 @@ const DataLineageFilters: React.FC<DataLineageFiltersProps> = ({
                 ))}
               </SelectContent>
             </Select>
-            <Button 
+            <Button
               onClick={handleShowHiddenNode}
               disabled={!selectedHiddenNode}
               size="sm"
@@ -153,7 +173,7 @@ const DataLineageFilters: React.FC<DataLineageFiltersProps> = ({
           </div>
         </div>
       )}
-      
+
       <div className="flex flex-wrap gap-4">
         {columns.map(columnName => {
           const availableValues = getAvailableValues(columnName);
@@ -162,7 +182,7 @@ const DataLineageFilters: React.FC<DataLineageFiltersProps> = ({
           const isAllSelected = selectedValues.length === availableValues.length;
 
           return (
-            <Popover 
+            <Popover
               key={columnName}
               open={openPopovers[columnName]}
               onOpenChange={(open) => setOpenPopovers(prev => ({ ...prev, [columnName]: open }))}

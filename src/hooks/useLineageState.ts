@@ -3,20 +3,34 @@ import { useEffect, useState } from 'react';
 interface LineageState {
   nodePositions: Record<string, { x: number; y: number }>;
   hiddenNodes: string[];
-  csvHash: string; // To identify if the same file is loaded
+  csvHash: string; 
 }
 
 export const useLineageState = (csvData: string[][]) => {
-  const [state, setState] = useState<LineageState>(() => {
-    const saved = localStorage.getItem('lineageState');
-    console.log(saved)
-    console.log(JSON.parse(saved))
-    return saved !== null ? JSON.parse(saved) : {
+  const getInitialState = (): LineageState => {
+    try {
+      const saved = localStorage.getItem('lineageState');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // ✅ Ensure all required keys exist
+        return {
+          nodePositions: parsed.nodePositions || {},
+          hiddenNodes: parsed.hiddenNodes || [],
+          csvHash: parsed.csvHash || '',
+        };
+      }
+    } catch (error) {
+      console.error('Failed to parse saved lineage state:', error);
+    }
+    // ✅ Default state if no saved data
+    return {
       nodePositions: {},
       hiddenNodes: [],
       csvHash: '',
     };
-  });
+  };
+
+  const [state, setState] = useState<LineageState>(getInitialState);
 
   // Generate a simple hash for CSV data
   const generateCsvHash = (data: string[][]): string => {
