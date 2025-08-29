@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronDown, Search } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ChevronDown, Search, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface FilterState {
@@ -15,6 +16,8 @@ interface DataLineageFiltersProps {
   columns: string[];
   filters: FilterState;
   onFiltersChange: (filters: FilterState) => void;
+  hiddenNodes: Set<string>;
+  onHiddenNodesChange: (hiddenNodes: Set<string>) => void;
 }
 
 const DataLineageFilters: React.FC<DataLineageFiltersProps> = ({
@@ -22,9 +25,12 @@ const DataLineageFilters: React.FC<DataLineageFiltersProps> = ({
   columns,
   filters,
   onFiltersChange,
+  hiddenNodes,
+  onHiddenNodesChange,
 }) => {
   const [searchTerms, setSearchTerms] = useState<Record<string, string>>({});
   const [openPopovers, setOpenPopovers] = useState<Record<string, boolean>>({});
+  const [selectedHiddenNode, setSelectedHiddenNode] = useState<string>('');
 
   // Get filtered data based on current filter selections
   const getFilteredData = (excludeColumn?: string) => {
@@ -93,9 +99,61 @@ const DataLineageFilters: React.FC<DataLineageFiltersProps> = ({
     }));
   };
 
+  const handleShowHiddenNode = () => {
+    if (selectedHiddenNode) {
+      const newHiddenNodes = new Set(hiddenNodes);
+      newHiddenNodes.delete(selectedHiddenNode);
+      onHiddenNodesChange(newHiddenNodes);
+      setSelectedHiddenNode('');
+    }
+  };
+
+  // Get all table names from data for hidden nodes dropdown
+  const allTableNames = useMemo(() => {
+    const names = new Set<string>();
+    data.forEach(row => {
+      if (row.childTableName) names.add(row.childTableName);
+      if (row.parentTableName) names.add(row.parentTableName);
+    });
+    return Array.from(names).sort();
+  }, [data]);
+
+  const hiddenNodesArray = Array.from(hiddenNodes);
+
   return (
     <div className="p-4 border-b bg-card">
       <h3 className="text-lg font-semibold mb-4 text-foreground">Data Filters</h3>
+      
+      {/* Hidden Nodes Controls */}
+      {hiddenNodesArray.length > 0 && (
+        <div className="mb-6 p-4 border rounded-lg bg-muted/50">
+          <h4 className="text-sm font-medium mb-3 text-foreground">Hidden Nodes ({hiddenNodesArray.length})</h4>
+          <div className="flex items-center gap-2">
+            <Select value={selectedHiddenNode} onValueChange={setSelectedHiddenNode}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Select hidden node" />
+              </SelectTrigger>
+              <SelectContent>
+                {hiddenNodesArray.map(nodeName => (
+                  <SelectItem key={nodeName} value={nodeName}>
+                    {nodeName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button 
+              onClick={handleShowHiddenNode}
+              disabled={!selectedHiddenNode}
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Eye className="h-4 w-4" />
+              Show Node
+            </Button>
+          </div>
+        </div>
+      )}
+      
       <div className="flex flex-wrap gap-4">
         {columns.map(columnName => {
           const availableValues = getAvailableValues(columnName);

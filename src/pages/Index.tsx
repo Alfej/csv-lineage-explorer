@@ -17,6 +17,9 @@ const Index = () => {
 
   // Multi-column filter state
   const [filters, setFilters] = useState<FilterState>({});
+  
+  // Hidden nodes state
+  const [hiddenNodes, setHiddenNodes] = useState<Set<string>>(new Set());
 
   const validateCSVStructure = (headers: string[]): boolean => {
     const expectedHeaders = [
@@ -37,6 +40,7 @@ const Index = () => {
     setShowResults(false);
     setCsvData([]);
     setFilters({});
+    setHiddenNodes(new Set());
   };
 
   const handleClearFile = () => {
@@ -44,6 +48,7 @@ const Index = () => {
     setShowResults(false);
     setShowLineageGraph(false);
     setCsvData([]);
+    setHiddenNodes(new Set());
   };
 
   const parseCSV = (text: string): string[][] => {
@@ -201,13 +206,19 @@ const Index = () => {
                 columns={csvData[0]}
                 filters={filters}
                 onFiltersChange={setFilters}
+                hiddenNodes={hiddenNodes}
+                onHiddenNodesChange={setHiddenNodes}
               />
             )}
 
             {showLineageGraph && (
               <div className="space-y-6">
                 <h3 className="text-xl font-semibold text-foreground">Data Lineage Graph</h3>
-                <DataLineageGraph csvData={filteredCsvData} />
+                <DataLineageGraph 
+                  csvData={filteredCsvData} 
+                  hiddenNodes={hiddenNodes}
+                  onHiddenNodesChange={setHiddenNodes}
+                />
               </div>
             )}
 

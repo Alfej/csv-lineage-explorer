@@ -11,10 +11,13 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Card } from '@/components/ui/card';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import TableNode from './TableNode';
 import RelationshipEdge from './RelationshipEdge';
 interface DataLineageGraphProps {
   csvData: string[][];
+  hiddenNodes: Set<string>;
+  onHiddenNodesChange: (hiddenNodes: Set<string>) => void;
 }
 
 interface TableData {
@@ -33,7 +36,7 @@ const edgeTypes = {
   relationship: RelationshipEdge as any,
 };
 
-const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
+const DataLineageGraph = ({ csvData, hiddenNodes, onHiddenNodesChange }: DataLineageGraphProps) => {
   // Parse CSV data (skip header row)
   const tableData: TableData[] = useMemo(() => {
     if (csvData.length === 0) return [];
@@ -69,9 +72,40 @@ const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
       tableMap.get(childTableName)!.parents.push(parentTableName);
     });
 
-    const tables = Array.from(tableMap.keys());
+    // Filter out hidden nodes
+    const visibleTables = Array.from(tableMap.keys()).filter(tableName => !hiddenNodes.has(tableName));
+
     const nodes: Node[] = [];
     const edges: Edge[] = [];
+
+    // Create bypass edges for hidden nodes
+    const createBypassEdges = () => {
+      const bypassEdges: { source: string; target: string; relationship: string }[] = [];
+      
+      hiddenNodes.forEach(hiddenNode => {
+        const hiddenNodeInfo = tableMap.get(hiddenNode);
+        if (!hiddenNodeInfo) return;
+        
+        // Connect each parent of hidden node to each child of hidden node
+        hiddenNodeInfo.parents.forEach(parent => {
+          if (!hiddenNodes.has(parent)) { // Only if parent is visible
+            hiddenNodeInfo.children.forEach(child => {
+              if (!hiddenNodes.has(child)) { // Only if child is visible
+                bypassEdges.push({
+                  source: parent,
+                  target: child,
+                  relationship: `via ${hiddenNode}`
+                });
+              }
+            });
+          }
+        });
+      });
+      
+      return bypassEdges;
+    };
+
+    const bypassEdges = createBypassEdges();
 
     // Create nodes with proper positioning
     const levels = new Map<string, number>();
@@ -98,7 +132,7 @@ const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
       return currentLevel;
     };
 
-    tables.forEach(tableName => calculateLevel(tableName));
+    visibleTables.forEach(tableName => calculateLevel(tableName));
 
     // Group tables by level
     const levelGroups = new Map<number, string[]>();
@@ -109,50 +143,80 @@ const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
       levelGroups.get(level)!.push(tableName);
     });
 
-    // Create nodes with calculated positions
+    // Create nodes with calculated positions (only for visible tables)
     levelGroups.forEach((tablesInLevel, level) => {
       tablesInLevel.forEach((tableName, index) => {
-        const tableInfo = tableMap.get(tableName)!;
-        nodes.push({
-          id: tableName,
-          type: 'table',
-          position: {
-            x: level * 300,
-            y: index * 120 + (level % 2) * 60, // Stagger positions
-          },
-          data: {
-            tableName,
-            tableType: tableInfo.type,
-            parents: tableInfo.parents,
-            children: tableInfo.children,
-          },
-        });
+        if (!hiddenNodes.has(tableName)) {
+          const tableInfo = tableMap.get(tableName)!;
+          nodes.push({
+            id: tableName,
+            type: 'table',
+            position: {
+              x: level * 300,
+              y: index * 120 + (level % 2) * 60, // Stagger positions
+            },
+            data: {
+              tableName,
+              tableType: tableInfo.type,
+              parents: tableInfo.parents.filter(p => !hiddenNodes.has(p)),
+              children: tableInfo.children.filter(c => !hiddenNodes.has(c)),
+            },
+          });
+        }
       });
     });
 
-    // Create edges
-    tableData.forEach(({ childTableName, relationship, parentTableName }, index) => {
+    // Create edges (only between visible nodes)
+    let edgeIndex = 0;
+    
+    // Add original edges between visible nodes
+    tableData.forEach(({ childTableName, relationship, parentTableName }) => {
+      if (!hiddenNodes.has(childTableName) && !hiddenNodes.has(parentTableName)) {
+        edges.push({
+          id: `e-${edgeIndex++}`,
+          source: parentTableName,
+          target: childTableName,
+          type: 'relationship',
+          data: {
+            relationship,
+            parentTableName,
+            childTableName,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+          },
+          style: {
+            strokeWidth: 2,
+          },
+        });
+      }
+    });
+
+    // Add bypass edges for hidden nodes
+    bypassEdges.forEach(({ source, target, relationship }) => {
       edges.push({
-        id: `e-${index}`,
-        source: parentTableName,
-        target: childTableName,
+        id: `e-bypass-${edgeIndex++}`,
+        source,
+        target,
         type: 'relationship',
         data: {
           relationship,
-          parentTableName,
-          childTableName,
+          parentTableName: source,
+          childTableName: target,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
         },
         style: {
           strokeWidth: 2,
+          strokeDasharray: '5,5', // Dashed line to indicate bypass
+          opacity: 0.7,
         },
       });
     });
 
     return { initialNodes: nodes, initialEdges: edges };
-  }, [tableData]);
+  }, [tableData, hiddenNodes]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -168,22 +232,44 @@ const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
     updateNodesAndEdges();
   }, [updateNodesAndEdges]);
 
+  const handleNodeContextMenu = useCallback((nodeId: string) => {
+    const newHiddenNodes = new Set(hiddenNodes);
+    newHiddenNodes.add(nodeId);
+    onHiddenNodesChange(newHiddenNodes);
+  }, [hiddenNodes, onHiddenNodesChange]);
+
   return (
     <Card className="w-full h-[600px] overflow-hidden">
       <div className="h-full">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          fitView
-          className="bg-background"
-        >
-          <Controls />
-          <Background />
-        </ReactFlow>
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <div className="h-full">
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
+                fitView
+                className="bg-background"
+              >
+                <Controls />
+                <Background />
+              </ReactFlow>
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            {nodes.map(node => (
+              <ContextMenuItem
+                key={node.id}
+                onClick={() => handleNodeContextMenu(node.id)}
+              >
+                Hide "{node.data.tableName}"
+              </ContextMenuItem>
+            ))}
+          </ContextMenuContent>
+        </ContextMenu>
       </div>
     </Card>
   );
