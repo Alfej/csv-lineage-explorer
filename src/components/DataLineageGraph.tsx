@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   ReactFlow,
   Node,
@@ -14,6 +14,8 @@ import '@xyflow/react/dist/style.css';
 import { Card } from '@/components/ui/card';
 import TableNode from './TableNode';
 import RelationshipEdge from './RelationshipEdge';
+import { useLineageState } from '../hooks/useLineageState';
+
 interface DataLineageGraphProps {
   csvData: string[][];
   hiddenNodes: Set<string>;
@@ -37,6 +39,41 @@ const edgeTypes = {
 };
 
 const DataLineageGraph = ({ csvData, hiddenNodes, onHiddenNodesChange }: DataLineageGraphProps) => {
+  const { state, updateState, currentCsvHash } = useLineageState(csvData);
+
+  // Check if we're loading the same CSV file
+  useEffect(() => {
+    if (state.csvHash === currentCsvHash) {
+      // Restore hidden nodes
+      onHiddenNodesChange(new Set(state.hiddenNodes));
+    } else {
+      // New CSV file, update hash
+      updateState({ csvHash: currentCsvHash, hiddenNodes: [], nodePositions: {} });
+    }
+  }, [currentCsvHash]);
+
+  // Save node positions when they change
+  const handleNodesChange = useCallback((changes: any[]) => {
+    onNodesChange(changes);
+    
+    // Save position changes
+    changes.forEach(change => {
+      if (change.type === 'position' && change.position) {
+        updateState({
+          nodePositions: {
+            ...state.nodePositions,
+            [change.id]: change.position
+          }
+        });
+      }
+    });
+  }, [state.nodePositions, updateState]);
+
+  // Save hidden nodes when they change
+  useEffect(() => {
+    updateState({ hiddenNodes: Array.from(hiddenNodes) });
+  }, [hiddenNodes]);
+
   // Parse CSV data using header row
   const tableData: TableData[] = useMemo(() => {
     if (csvData.length === 0) return [];
@@ -164,12 +201,13 @@ const DataLineageGraph = ({ csvData, hiddenNodes, onHiddenNodesChange }: DataLin
       tablesInLevel.forEach((tableName, index) => {
         if (!hiddenNodes.has(tableName)) {
           const tableInfo = tableMap.get(tableName)!;
+          const savedPosition = state.nodePositions[tableName];
           nodes.push({
             id: tableName,
             type: 'table',
-            position: {
+            position: savedPosition || {
               x: level * 300,
-              y: index * 120 + (level % 2) * 60, // Stagger positions
+              y: index * 120 + (level % 2) * 60,
             },
             data: {
               tableName,
@@ -232,7 +270,7 @@ const DataLineageGraph = ({ csvData, hiddenNodes, onHiddenNodesChange }: DataLin
     });
 
     return { initialNodes: nodes, initialEdges: edges };
-  }, [tableData, hiddenNodes]);
+  }, [tableData, hiddenNodes, state.nodePositions]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -261,12 +299,12 @@ const DataLineageGraph = ({ csvData, hiddenNodes, onHiddenNodesChange }: DataLin
         <ReactFlow
           nodes={nodes}
           edges={edges}
-          onNodesChange={onNodesChange}
+          onNodesChange={handleNodesChange}
           onEdgesChange={onEdgesChange}
           onNodeContextMenu={handleNodeContextMenu}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
-          fitView
+          fitView={Object.keys(state.nodePositions).length === 0} // Only fit view if no saved positions
           className="bg-background"
         >
           <Controls />
