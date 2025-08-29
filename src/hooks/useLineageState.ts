@@ -9,7 +9,9 @@ interface LineageState {
 export const useLineageState = (csvData: string[][]) => {
   const [state, setState] = useState<LineageState>(() => {
     const saved = localStorage.getItem('lineageState');
-    return saved ? JSON.parse(saved) : {
+    console.log(saved)
+    console.log(JSON.parse(saved))
+    return saved !== null ? JSON.parse(saved) : {
       nodePositions: {},
       hiddenNodes: [],
       csvHash: '',
