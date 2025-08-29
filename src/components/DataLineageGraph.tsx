@@ -8,10 +8,10 @@ import {
   useNodesState,
   useEdgesState,
   MarkerType,
+  NodeMouseHandler,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Card } from '@/components/ui/card';
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import TableNode from './TableNode';
 import RelationshipEdge from './RelationshipEdge';
 interface DataLineageGraphProps {
@@ -37,15 +37,31 @@ const edgeTypes = {
 };
 
 const DataLineageGraph = ({ csvData, hiddenNodes, onHiddenNodesChange }: DataLineageGraphProps) => {
-  // Parse CSV data (skip header row)
+  // Parse CSV data using header row
   const tableData: TableData[] = useMemo(() => {
     if (csvData.length === 0) return [];
+
+    const headers = csvData[0].map(h => h.toLowerCase().trim());
+    const columnIndexes = {
+      childTableName: headers.indexOf('childtablename'),
+      childTableType: headers.indexOf('childtabletype'),
+      relationship: headers.indexOf('relationship'),
+      parentTableName: headers.indexOf('parenttablename'),
+      parentTableType: headers.indexOf('parenttabletype')
+    };
+
+    // Validate if all required columns are present
+    if (Object.values(columnIndexes).some(index => index === -1)) {
+      console.error('Missing required columns in CSV header');
+      return [];
+    }
+
     return csvData.slice(1).map(row => ({
-      childTableName: row[0] || '',
-      childTableType: row[1] || '',
-      relationship: row[2] || '',
-      parentTableName: row[3] || '',
-      parentTableType: row[4] || '',
+      childTableName: row[columnIndexes.childTableName] || '',
+      childTableType: row[columnIndexes.childTableType] || '',
+      relationship: row[columnIndexes.relationship] || '',
+      parentTableName: row[columnIndexes.parentTableName] || '',
+      parentTableType: row[columnIndexes.parentTableType] || '',
     }));
   }, [csvData]);
 
@@ -232,44 +248,30 @@ const DataLineageGraph = ({ csvData, hiddenNodes, onHiddenNodesChange }: DataLin
     updateNodesAndEdges();
   }, [updateNodesAndEdges]);
 
-  const handleNodeContextMenu = useCallback((nodeId: string) => {
+  const handleNodeContextMenu: NodeMouseHandler = useCallback((event, node) => {
+    event.preventDefault(); // Prevent default context menu
     const newHiddenNodes = new Set(hiddenNodes);
-    newHiddenNodes.add(nodeId);
+    newHiddenNodes.add(node.id);
     onHiddenNodesChange(newHiddenNodes);
   }, [hiddenNodes, onHiddenNodesChange]);
 
   return (
     <Card className="w-full h-[600px] overflow-hidden">
       <div className="h-full">
-        <ContextMenu>
-          <ContextMenuTrigger asChild>
-            <div className="h-full">
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                nodeTypes={nodeTypes}
-                edgeTypes={edgeTypes}
-                fitView
-                className="bg-background"
-              >
-                <Controls />
-                <Background />
-              </ReactFlow>
-            </div>
-          </ContextMenuTrigger>
-          <ContextMenuContent>
-            {nodes.map(node => (
-              <ContextMenuItem
-                key={node.id}
-                onClick={() => handleNodeContextMenu(node.id)}
-              >
-                Hide "{node.data.tableName}"
-              </ContextMenuItem>
-            ))}
-          </ContextMenuContent>
-        </ContextMenu>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onNodeContextMenu={handleNodeContextMenu}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          fitView
+          className="bg-background"
+        >
+          <Controls />
+          <Background />
+        </ReactFlow>
       </div>
     </Card>
   );
