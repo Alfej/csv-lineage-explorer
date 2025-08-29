@@ -3,10 +3,9 @@ import Logo from '@/components/Logo';
 import FileUpload from '@/components/FileUpload';
 import CsvTable from '@/components/CsvTable';
 import DataLineageGraph from '@/components/DataLineageGraph';
-import FilterControls, { FilterState } from '@/components/FilterControls';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import DataLineageFilters from '@/components/DataLineageFilters';
+import DataLineageFilters, { FilterState } from '@/components/DataLineageFilters';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -114,6 +113,38 @@ const Index = () => {
     }
   };
 
+  // Convert CSV data to array of objects for filtering
+  const dataForFiltering = useMemo(() => {
+    if (csvData.length === 0) return [];
+    const headers = csvData[0];
+    return csvData.slice(1).map(row => 
+      headers.reduce((obj, header, index) => ({
+        ...obj,
+        [header]: row[index] || ''
+      }), {})
+    );
+  }, [csvData]);
+
+  // Filter the data based on current filters
+  const filteredData = useMemo(() => {
+    return dataForFiltering.filter(row => {
+      return Object.entries(filters).every(([column, selectedValues]) => {
+        if (selectedValues.length === 0) return true;
+        return selectedValues.includes(String(row[column]));
+      });
+    });
+  }, [dataForFiltering, filters]);
+
+  // Convert filtered data back to CSV format for the table
+  const filteredCsvData = useMemo(() => {
+    if (csvData.length === 0) return [];
+    const headers = csvData[0];
+    const filteredRows = filteredData.map(row => 
+      headers.map(header => row[header] || '')
+    );
+    return [headers, ...filteredRows];
+  }, [csvData, filteredData]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -163,10 +194,20 @@ const Index = () => {
               </Button>
             </div>
             
+            {/* Filters */}
+            {csvData.length > 0 && (
+              <DataLineageFilters
+                data={dataForFiltering}
+                columns={csvData[0]}
+                filters={filters}
+                onFiltersChange={setFilters}
+              />
+            )}
+
             {showLineageGraph && (
               <div className="space-y-6">
                 <h3 className="text-xl font-semibold text-foreground">Data Lineage Graph</h3>
-                <DataLineageGraph csvData={csvData} />
+                <DataLineageGraph csvData={filteredCsvData} />
               </div>
             )}
 
@@ -174,7 +215,6 @@ const Index = () => {
               filePath={selectedFile?.name || 'Unknown'}
               csvData={filteredCsvData}
               fileName={selectedFile?.name || 'Unknown'}
-              filters={filters}
             />
           </div>
         )}

@@ -13,11 +13,8 @@ import '@xyflow/react/dist/style.css';
 import { Card } from '@/components/ui/card';
 import TableNode from './TableNode';
 import RelationshipEdge from './RelationshipEdge';
-import { FilterState } from './FilterControls';
-
 interface DataLineageGraphProps {
   csvData: string[][];
-  filters?: FilterState;
 }
 
 interface TableData {
@@ -53,7 +50,7 @@ const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
     const tableMap = new Map<string, { type: string; children: string[]; parents: string[] }>();
     
     // Build table relationships
-    filteredTableData.forEach(({ childTableName, childTableType, parentTableName, parentTableType }) => {
+    tableData.forEach(({ childTableName, childTableType, parentTableName, parentTableType }) => {
       // Add parent table
       if (!tableMap.has(parentTableName)) {
         tableMap.set(parentTableName, { type: parentTableType, children: [], parents: [] });
@@ -131,7 +128,7 @@ const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
     });
 
     // Create edges
-    filteredTableData.forEach(({ childTableName, relationship, parentTableName }, index) => {
+    tableData.forEach(({ childTableName, relationship, parentTableName }, index) => {
       edges.push({
         id: `e-${index}`,
         source: parentTableName,
@@ -152,7 +149,7 @@ const DataLineageGraph = ({ csvData }: DataLineageGraphProps) => {
     });
 
     return { initialNodes: nodes, initialEdges: edges };
-  }, [filteredTableData]);
+  }, [tableData]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
