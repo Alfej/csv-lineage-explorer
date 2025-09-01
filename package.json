@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "electron": "cross-env NODE_ENV=development ELECTRON_DEV=true electron .",
     "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development ELECTRON_DEV=true electron .\" --kill-others",
-    "electron-build": "npm run build && cross-env NODE_ENV=production electron .",
+    "electron-build": "npm run build && cross-env NODE_ENV=production ELECTRON_DEV=false electron .",
     "dist": "npm run build && electron-builder",
     "dist-win": "npm run build && electron-builder --win",
     "dist-mac": "npm run build && electron-builder --mac",
